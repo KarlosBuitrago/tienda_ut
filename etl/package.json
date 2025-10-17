@@ -1,0 +1,25 @@
+{
+  "name": "tienda-etl",
+  "version": "1.0.0",
+  "description": "ETL Process for Tienda CIPA Data Warehouse",
+  "main": "etl-main.js",
+  "scripts": {
+    "etl:full": "node etl-main.js --full",
+    "etl:dimensions": "node etl-main.js --dimensions",
+    "etl:facts": "node etl-main.js --facts", 
+    "etl:schedule": "node scheduler.js",
+    "etl:test": "node test-connections.js"
+  },
+  "dependencies": {
+    "mysql2": "^3.6.0",
+    "dotenv": "^16.0.3",
+    "node-cron": "^3.0.2",
+    "winston": "^3.8.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  },
+  "keywords": ["etl", "datawarehouse", "mysql", "business-intelligence"],
+  "author": "Tienda CIPA Development Team",
+  "license": "MIT"
+}
