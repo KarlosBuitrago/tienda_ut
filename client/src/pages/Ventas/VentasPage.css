@@ -1,0 +1,696 @@
+/* ===== ESTILOS PARA MÓDULO DE VENTAS ===== */
+
+/* Página principal de ventas */
+.ventas-page {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.ventas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--primary-100);
+}
+
+.ventas-header h1 {
+  color: var(--primary-700);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Estadísticas de ventas */
+.ventas-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, var(--primary-50) 0%, white 100%);
+  border: 1px solid var(--primary-200);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.stat-card h3 {
+  color: var(--primary-600);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 0.5rem 0;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-800);
+  margin: 0;
+}
+
+.stat-trend {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.stat-trend.positive {
+  color: #059669;
+}
+
+.stat-trend.negative {
+  color: #dc2626;
+}
+
+/* Tabla de ventas */
+.ventas-tabla {
+  background: white;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--primary-200);
+}
+
+.ventas-tabla table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ventas-tabla thead {
+  background: var(--primary-600);
+  color: white;
+}
+
+.ventas-tabla th,
+.ventas-tabla td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--primary-100);
+}
+
+.ventas-tabla th {
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ventas-tabla tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.ventas-tabla tbody tr:hover {
+  background-color: var(--primary-50);
+}
+
+.ventas-tabla .numero-venta {
+  font-weight: 600;
+  color: var(--primary-700);
+}
+
+.ventas-tabla .tipo-venta {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ventas-tabla .tipo-venta.efectivo {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.ventas-tabla .tipo-venta.credito {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.ventas-tabla .tipo-venta.debito {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.ventas-tabla .tipo-venta.online {
+  background: #f3e8ff;
+  color: #6b21a8;
+}
+
+.ventas-tabla .estado {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.ventas-tabla .estado.pagado {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.ventas-tabla .estado.pendiente {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+.acciones-venta {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ===== NUEVA VENTA ===== */
+.nueva-venta {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.venta-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.seccion {
+  background: white;
+  border: 1px solid var(--primary-200);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.seccion h3 {
+  color: var(--primary-700);
+  margin: 0 0 1rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Sección Cliente */
+.cliente-form {
+  position: relative;
+}
+
+.clientes-sugerencias {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--primary-300);
+  border-top: none;
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: var(--shadow-md);
+}
+
+.sugerencia-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--primary-100);
+  transition: background-color 0.2s ease;
+}
+
+.sugerencia-item:hover {
+  background-color: var(--primary-50);
+}
+
+.sugerencia-item:last-child {
+  border-bottom: none;
+}
+
+.cliente-seleccionado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--primary-50);
+  border: 1px solid var(--primary-200);
+  border-radius: var(--border-radius);
+}
+
+.cliente-info p {
+  margin: 0.25rem 0;
+  color: var(--gray-600);
+}
+
+/* Tipo de Venta */
+.tipo-venta-options {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--primary-200);
+  border-radius: var(--border-radius);
+  transition: all 0.2s ease;
+}
+
+.radio-option:hover {
+  border-color: var(--primary-400);
+  background-color: var(--primary-50);
+}
+
+.radio-option input[type="radio"] {
+  margin: 0;
+}
+
+.radio-option input[type="radio"]:checked + .radio-label {
+  color: var(--primary-700);
+  font-weight: 600;
+}
+
+.radio-option:has(input:checked) {
+  border-color: var(--primary-500);
+  background-color: var(--primary-100);
+}
+
+/* Productos */
+.producto-form {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.cantidad-input {
+  max-width: 100px;
+}
+
+.cantidad-input-small {
+  max-width: 70px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Carrito */
+.carrito-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.carrito-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid var(--primary-200);
+  border-radius: var(--border-radius);
+  background: var(--primary-25);
+}
+
+.item-info strong {
+  color: var(--primary-700);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.item-info p {
+  margin: 0;
+  color: var(--gray-600);
+  font-size: 0.875rem;
+}
+
+.item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Pagos */
+.pago-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.pagos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.pago-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--primary-50);
+  border: 1px solid var(--primary-200);
+  border-radius: var(--border-radius);
+}
+
+/* Resumen */
+.resumen {
+  background: var(--primary-50);
+  border: 1px solid var(--primary-200);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+}
+
+.resumen-linea {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--primary-200);
+}
+
+.resumen-linea:last-child {
+  border-bottom: none;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.resumen-linea.pendiente {
+  color: #dc2626;
+}
+
+.resumen-linea.completo {
+  color: #059669;
+}
+
+/* ===== DETALLE VENTA ===== */
+.detalle-venta {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.detalle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--primary-200);
+}
+
+.detalle-header h2 {
+  color: var(--primary-700);
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+/* Cards de información */
+.venta-info-card,
+.cliente-info-card,
+.productos-card,
+.pagos-card,
+.resumen-card {
+  background: white;
+  border: 1px solid var(--primary-200);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.venta-info-card h3,
+.cliente-info-card h3,
+.productos-card h3,
+.pagos-card h3,
+.resumen-card h3 {
+  color: var(--primary-700);
+  margin: 0 0 1rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.info-item label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--gray-600);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.numero-venta {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary-700);
+}
+
+.cliente-detalle {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cliente-nombre {
+  font-size: 1.125rem;
+}
+
+.cliente-datos p {
+  margin: 0.25rem 0;
+  color: var(--gray-600);
+}
+
+/* Tablas en detalle */
+.productos-tabla table,
+.pagos-tabla table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.productos-tabla th,
+.pagos-tabla th,
+.productos-tabla td,
+.pagos-tabla td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--primary-200);
+}
+
+.productos-tabla th,
+.pagos-tabla th {
+  background: var(--primary-100);
+  color: var(--primary-800);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.no-pagos {
+  text-align: center;
+  color: var(--gray-500);
+  font-style: italic;
+  padding: 2rem;
+  background: var(--gray-50);
+  border-radius: var(--border-radius);
+}
+
+.resumen-financiero {
+  background: var(--primary-50);
+  border: 1px solid var(--primary-200);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+}
+
+/* Estados y etiquetas */
+.estado,
+.tipo-venta {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: var(--border-radius);
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-content h3 {
+  color: var(--primary-700);
+  margin: 0 0 1rem 0;
+}
+
+.modal-content p {
+  color: var(--gray-600);
+  margin-bottom: 2rem;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+/* Loading y Error */
+.loading {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.loading-spinner {
+  color: var(--primary-600);
+  font-size: 1.125rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.error {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.error-message {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--border-radius);
+  padding: 2rem;
+  color: #991b1b;
+}
+
+.error-message h3 {
+  margin: 0 0 1rem 0;
+  color: #dc2626;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .ventas-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .ventas-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .producto-form {
+    grid-template-columns: 1fr;
+  }
+  
+  .pago-form {
+    grid-template-columns: 1fr;
+  }
+  
+  .carrito-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .detalle-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .ventas-tabla {
+    overflow-x: auto;
+  }
+  
+  .modal-content {
+    width: 95%;
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .ventas-page,
+  .nueva-venta,
+  .detalle-venta {
+    padding: 1rem;
+  }
+  
+  .seccion {
+    padding: 1rem;
+  }
+  
+  .tipo-venta-options {
+    flex-direction: column;
+  }
+  
+  .acciones-venta {
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,554 @@
+/* ===== REPORTES PAGE STYLES ===== */
+.reportes-page {
+  padding: 20px;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.reportes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.reportes-header h1 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 2rem;
+}
+
+.reportes-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* ===== LAYOUT ===== */
+.reportes-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 20px;
+  height: calc(100vh - 160px);
+}
+
+/* ===== SIDEBAR ===== */
+.reportes-sidebar {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow-y: auto;
+}
+
+.reportes-sidebar h3 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 1.2rem;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 10px;
+}
+
+.reportes-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reporte-item {
+  padding: 15px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #f8f9fa;
+}
+
+.reporte-item:hover {
+  border-color: #3498db;
+  background: #e3f2fd;
+  transform: translateY(-2px);
+}
+
+.reporte-item.active {
+  border-color: #3498db;
+  background: #3498db;
+  color: white;
+}
+
+.reporte-item h4 {
+  margin: 0 0 5px 0;
+  font-size: 0.9rem;
+}
+
+.reporte-item p {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.reporte-item.active h4,
+.reporte-item.active p {
+  color: white;
+}
+
+/* ===== CONTENIDO PRINCIPAL ===== */
+.reportes-contenido {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow-y: auto;
+}
+
+/* ===== FILTROS ===== */
+.filtros-reporte {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #3498db;
+}
+
+.filtros-reporte h4 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+}
+
+.filtros-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.filtro-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.filtro-item label {
+  font-weight: 600;
+  color: #34495e;
+  font-size: 0.9rem;
+}
+
+/* ===== LOADING ===== */
+.reporte-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+}
+
+.loading-spinner {
+  padding: 20px 40px;
+  background: #3498db;
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ===== DASHBOARD GENERAL ===== */
+.dashboard-general h2 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  color: white;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.stat-card h3 {
+  margin: 0 0 10px 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  margin: 0;
+}
+
+.stat-value.critical {
+  color: #e74c3c !important;
+  background: white;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+/* ===== TABLAS ===== */
+.reporte-tabla h2 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.reporte-tabla table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.reporte-tabla th {
+  background: #34495e;
+  color: white;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.reporte-tabla td {
+  padding: 12px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.reporte-tabla tr:hover {
+  background: #f8f9fa;
+}
+
+.reporte-tabla .critical {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+.reporte-tabla .warning {
+  color: #f39c12;
+  font-weight: bold;
+}
+
+/* Estados y etiquetas */
+.estado {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.estado.agotado {
+  background: #e74c3c;
+  color: white;
+}
+
+.estado.critico {
+  background: #f39c12;
+  color: white;
+}
+
+.estado.bajo {
+  background: #f1c40f;
+  color: #2c3e50;
+}
+
+.urgencia {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.urgencia.alta {
+  background: #e74c3c;
+  color: white;
+}
+
+.urgencia.media {
+  background: #f39c12;
+  color: white;
+}
+
+.urgencia.baja {
+  background: #27ae60;
+  color: white;
+}
+
+/* ===== RANKINGS ===== */
+.reporte-ranking h2 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.ranking-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-left: 4px solid #3498db;
+}
+
+.ranking-posicion {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #3498db;
+  min-width: 50px;
+}
+
+.ranking-info {
+  flex: 1;
+}
+
+.ranking-info h4 {
+  margin: 0 0 5px 0;
+  color: #2c3e50;
+}
+
+.ranking-info p {
+  margin: 0;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.ranking-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: right;
+}
+
+.ranking-stats .stat {
+  display: flex;
+  justify-content: space-between;
+  min-width: 200px;
+}
+
+.ranking-stats .label {
+  color: #7f8c8d;
+  font-size: 0.8rem;
+}
+
+.ranking-stats .value {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+/* ===== MUNICIPIOS ===== */
+.reporte-ubicaciones h2 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.municipios-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.municipio-card {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-top: 4px solid #3498db;
+}
+
+.municipio-card h4 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  font-size: 1.2rem;
+}
+
+.municipio-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.municipio-stats .stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.municipio-stats .stat:last-child {
+  border-bottom: none;
+}
+
+/* ===== TENDENCIAS ===== */
+.reporte-tendencias h2 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.tendencias-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.grafico-placeholder {
+  background: #f8f9fa;
+  border: 2px dashed #bdc3c7;
+  border-radius: 8px;
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #7f8c8d;
+}
+
+.tendencias-tabla table {
+  height: fit-content;
+}
+
+.positivo {
+  color: #27ae60;
+  font-weight: bold;
+}
+
+.negativo {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+/* ===== RENTABILIDAD ===== */
+.reporte-rentabilidad h2 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.rentabilidad {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.rentabilidad.alta {
+  background: #27ae60;
+  color: white;
+}
+
+.rentabilidad.media {
+  background: #f39c12;
+  color: white;
+}
+
+.rentabilidad.baja {
+  background: #e74c3c;
+  color: white;
+}
+
+/* ===== NO DATA ===== */
+.no-data {
+  text-align: center;
+  padding: 60px 20px;
+  color: #7f8c8d;
+  font-size: 1.1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 2px dashed #bdc3c7;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1200px) {
+  .reportes-layout {
+    grid-template-columns: 250px 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .reportes-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  
+  .reportes-sidebar {
+    height: auto;
+    max-height: 300px;
+  }
+  
+  .filtros-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .dashboard-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .tendencias-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .municipios-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .ranking-item {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .ranking-stats .stat {
+    min-width: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .reportes-page {
+    padding: 10px;
+  }
+  
+  .reportes-header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .reportes-actions {
+    justify-content: center;
+  }
+  
+  .dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .reporte-tabla table {
+    font-size: 0.8rem;
+  }
+  
+  .reporte-tabla th,
+  .reporte-tabla td {
+    padding: 8px;
+  }
+}
