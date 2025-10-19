@@ -19,7 +19,7 @@ class DataLoader {
         this.logger.info('Loader inicializado correctamente');
     }
 
-    // 📦 Cargar productos (con manejo de duplicados)
+    // 📦 Cargar productos (con manejo de duplicados) - OPTIMIZADO
     async loadProducts(products) {
         this.logger.info(`📦 Cargando ${products.length} productos al DW...`);
         
@@ -27,65 +27,48 @@ class DataLoader {
             let loaded = 0;
             let updated = 0;
 
-            for (const product of products) {
-                try {
-                    // Verificar si el producto ya existe
-                    const [existing] = await this.db.dwConnection.execute(
-                        'SELECT producto_key FROM dim_producto WHERE codigo_producto = ?',
-                        [product.codigo_producto]
-                    );
+            // Usar UPSERT (INSERT ... ON DUPLICATE KEY UPDATE) en lotes
+            const batchSize = 50;
+            
+            for (let i = 0; i < products.length; i += batchSize) {
+                const batch = products.slice(i, i + batchSize);
+                
+                for (const product of batch) {
+                    const result = await this.db.dwConnection.execute(`
+                        INSERT INTO dim_producto (
+                            codigo_producto, nombre_producto, tipo_producto, unidad_medida,
+                            precio_actual, costo_actual, stock_actual, margen_actual, categoria_stock
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE
+                            nombre_producto = VALUES(nombre_producto),
+                            tipo_producto = VALUES(tipo_producto),
+                            unidad_medida = VALUES(unidad_medida),
+                            precio_actual = VALUES(precio_actual),
+                            costo_actual = VALUES(costo_actual),
+                            stock_actual = VALUES(stock_actual),
+                            margen_actual = VALUES(margen_actual),
+                            categoria_stock = VALUES(categoria_stock),
+                            fecha_actualizacion = CURRENT_TIMESTAMP
+                    `, [
+                        product.codigo_producto,
+                        product.nombre_producto,
+                        product.tipo_producto,
+                        product.unidad_medida,
+                        product.precio_actual,
+                        product.costo_actual,
+                        product.stock_actual,
+                        product.margen_actual,
+                        product.categoria_stock
+                    ]);
 
-                    if (existing.length > 0) {
-                        // Actualizar producto existente
-                        await this.db.dwConnection.execute(`
-                            UPDATE dim_producto SET
-                                nombre_producto = ?,
-                                tipo_producto = ?,
-                                unidad_medida = ?,
-                                precio_actual = ?,
-                                costo_actual = ?,
-                                stock_actual = ?,
-                                margen_actual = ?,
-                                categoria_stock = ?,
-                                fecha_actualizacion = CURRENT_TIMESTAMP
-                            WHERE codigo_producto = ?
-                        `, [
-                            product.nombre_producto,
-                            product.tipo_producto,
-                            product.unidad_medida,
-                            product.precio_actual,
-                            product.costo_actual,
-                            product.stock_actual,
-                            product.margen_actual,
-                            product.categoria_stock,
-                            product.codigo_producto
-                        ]);
-                        updated++;
-                    } else {
-                        // Insertar nuevo producto
-                        await this.db.dwConnection.execute(`
-                            INSERT INTO dim_producto (
-                                codigo_producto, nombre_producto, tipo_producto, unidad_medida,
-                                precio_actual, costo_actual, stock_actual, margen_actual, categoria_stock
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        `, [
-                            product.codigo_producto,
-                            product.nombre_producto,
-                            product.tipo_producto,
-                            product.unidad_medida,
-                            product.precio_actual,
-                            product.costo_actual,
-                            product.stock_actual,
-                            product.margen_actual,
-                            product.categoria_stock
-                        ]);
+                    if (result[0].affectedRows === 1) {
                         loaded++;
+                    } else if (result[0].affectedRows === 2) {
+                        updated++;
                     }
-
-                    this.logger.incrementLoaded();
-                } catch (error) {
-                    this.logger.error(`Error cargando producto ${product.codigo_producto}`, error);
                 }
+
+                this.logger.logProgress(i + batch.length, products.length, 'cargando productos');
             }
 
             this.logger.info(`✅ Productos: ${loaded} nuevos, ${updated} actualizados`);
@@ -96,7 +79,7 @@ class DataLoader {
         }
     }
 
-    // 👥 Cargar clientes
+    // 👥 Cargar clientes - OPTIMIZADO
     async loadClients(clients) {
         this.logger.info(`👥 Cargando ${clients.length} clientes al DW...`);
         
@@ -104,74 +87,51 @@ class DataLoader {
             let loaded = 0;
             let updated = 0;
 
-            for (const client of clients) {
-                try {
-                    const [existing] = await this.db.dwConnection.execute(
-                        'SELECT cliente_key FROM dim_cliente WHERE id_cliente_original = ?',
-                        [client.id_cliente_original]
-                    );
+            const batchSize = 50;
+            
+            for (let i = 0; i < clients.length; i += batchSize) {
+                const batch = clients.slice(i, i + batchSize);
+                
+                for (const client of batch) {
+                    const result = await this.db.dwConnection.execute(`
+                        INSERT INTO dim_cliente (
+                            id_cliente_original, nombre_cliente, genero_cliente, tipo_documento,
+                            numero_documento, municipio, edad, rango_edad, segmento_cliente,
+                            email, telefono_principal, direccion
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE
+                            nombre_cliente = VALUES(nombre_cliente),
+                            genero_cliente = VALUES(genero_cliente),
+                            tipo_documento = VALUES(tipo_documento),
+                            numero_documento = VALUES(numero_documento),
+                            municipio = VALUES(municipio),
+                            edad = VALUES(edad),
+                            rango_edad = VALUES(rango_edad),
+                            segmento_cliente = VALUES(segmento_cliente),
+                            email = VALUES(email),
+                            telefono_principal = VALUES(telefono_principal),
+                            direccion = VALUES(direccion),
+                            fecha_actualizacion = CURRENT_TIMESTAMP
+                    `, [
+                        client.id_cliente_original,
+                        client.nombre_cliente,
+                        client.genero_cliente,
+                        client.tipo_documento,
+                        client.numero_documento,
+                        client.municipio,
+                        client.edad,
+                        client.rango_edad,
+                        client.segmento_cliente,
+                        client.email,
+                        client.telefono_principal,
+                        client.direccion
+                    ]);
 
-                    if (existing.length > 0) {
-                        // Actualizar cliente existente
-                        await this.db.dwConnection.execute(`
-                            UPDATE dim_cliente SET
-                                nombre_cliente = ?,
-                                genero_cliente = ?,
-                                tipo_documento = ?,
-                                numero_documento = ?,
-                                municipio = ?,
-                                edad = ?,
-                                rango_edad = ?,
-                                segmento_cliente = ?,
-                                email = ?,
-                                telefono_principal = ?,
-                                direccion = ?,
-                                fecha_actualizacion = CURRENT_TIMESTAMP
-                            WHERE id_cliente_original = ?
-                        `, [
-                            client.nombre_cliente,
-                            client.genero_cliente,
-                            client.tipo_documento,
-                            client.numero_documento,
-                            client.municipio,
-                            client.edad,
-                            client.rango_edad,
-                            client.segmento_cliente,
-                            client.email,
-                            client.telefono_principal,
-                            client.direccion,
-                            client.id_cliente_original
-                        ]);
-                        updated++;
-                    } else {
-                        // Insertar nuevo cliente
-                        await this.db.dwConnection.execute(`
-                            INSERT INTO dim_cliente (
-                                id_cliente_original, nombre_cliente, genero_cliente, tipo_documento,
-                                numero_documento, municipio, edad, rango_edad, segmento_cliente,
-                                email, telefono_principal, direccion
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        `, [
-                            client.id_cliente_original,
-                            client.nombre_cliente,
-                            client.genero_cliente,
-                            client.tipo_documento,
-                            client.numero_documento,
-                            client.municipio,
-                            client.edad,
-                            client.rango_edad,
-                            client.segmento_cliente,
-                            client.email,
-                            client.telefono_principal,
-                            client.direccion
-                        ]);
-                        loaded++;
-                    }
-
-                    this.logger.incrementLoaded();
-                } catch (error) {
-                    this.logger.error(`Error cargando cliente ${client.id_cliente_original}`, error);
+                    if (result[0].affectedRows === 1) loaded++;
+                    else if (result[0].affectedRows === 2) updated++;
                 }
+
+                this.logger.logProgress(i + batch.length, clients.length, 'cargando clientes');
             }
 
             this.logger.info(`✅ Clientes: ${loaded} nuevos, ${updated} actualizados`);
@@ -288,7 +248,7 @@ class DataLoader {
         }
     }
 
-    // 💰 Cargar hechos de ventas (con resolución de claves)
+    // 💰 Cargar hechos de ventas (con resolución de claves) - OPTIMIZADO
     async loadSales(sales) {
         this.logger.info(`💰 Cargando ${sales.length} hechos de ventas al DW...`);
         
@@ -299,67 +259,80 @@ class DataLoader {
             // Crear mapas de claves para optimizar búsquedas
             const dimensionKeys = await this.getDimensionKeyMaps();
 
+            // Obtener ventas existentes en una sola consulta
+            this.logger.info('🔍 Verificando ventas existentes...');
+            const [existingVentas] = await this.db.dwConnection.execute(
+                'SELECT numero_venta_original, codigo_producto_original FROM fact_ventas'
+            );
+            
+            const existingSet = new Set(
+                existingVentas.map(v => `${v.numero_venta_original}-${v.codigo_producto_original}`)
+            );
+            this.logger.info(`✓ ${existingSet.size} ventas ya en DW`);
+
+            // Preparar datos para inserción masiva
+            const ventasParaInsertar = [];
+
             for (const sale of sales) {
-                try {
-                    // Resolver claves de dimensiones
-                    const keys = await this.resolveDimensionKeys(sale, dimensionKeys);
-                    
-                    if (!keys.tiempo_key || !keys.producto_key || !keys.cliente_key || !keys.ubicacion_key) {
-                        this.logger.warn(`Venta ${sale.numero_venta_original} omitida por claves faltantes`);
-                        skipped++;
-                        continue;
-                    }
-
-                    // Verificar si la venta ya existe (evitar duplicados)
-                    const [existing] = await this.db.dwConnection.execute(`
-                        SELECT venta_key FROM fact_ventas 
-                        WHERE numero_venta_original = ? 
-                        AND codigo_producto_original = ?
-                    `, [sale.numero_venta_original, sale.codigo_producto_original]);
-
-                    if (existing.length === 0) {
-                        await this.db.dwConnection.execute(`
-                            INSERT INTO fact_ventas (
-                                tiempo_key, producto_key, cliente_key, ubicacion_key, medio_pago_key,
-                                numero_venta_original, codigo_producto_original, id_cliente_original,
-                                cantidad_vendida, precio_unitario, costo_unitario, subtotal,
-                                descuento, total_linea, utilidad_linea, margen_linea,
-                                tipo_venta, fecha_venta_original
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        `, [
-                            keys.tiempo_key,
-                            keys.producto_key,
-                            keys.cliente_key,
-                            keys.ubicacion_key,
-                            keys.medio_pago_key,
-                            sale.numero_venta_original,
-                            sale.codigo_producto_original,
-                            sale.id_cliente_original,
-                            sale.cantidad_vendida,
-                            sale.precio_unitario,
-                            sale.costo_unitario,
-                            sale.subtotal,
-                            sale.descuento,
-                            sale.total_linea,
-                            sale.utilidad_linea,
-                            sale.margen_linea,
-                            sale.tipo_venta,
-                            sale.fecha_venta_original
-                        ]);
-                        
-                        loaded++;
-                        this.logger.incrementLoaded();
-                    } else {
-                        skipped++;
-                    }
-
-                    // Log progreso cada 100 registros
-                    if ((loaded + skipped) % 100 === 0) {
-                        this.logger.logProgress(loaded + skipped, sales.length, 'cargando ventas');
-                    }
-                } catch (error) {
-                    this.logger.error(`Error cargando venta ${sale.numero_venta_original}`, error);
+                // Verificar si ya existe
+                const key = `${sale.numero_venta_original}-${sale.codigo_producto_original}`;
+                if (existingSet.has(key)) {
                     skipped++;
+                    continue;
+                }
+
+                // Resolver claves de dimensiones
+                const keys = await this.resolveDimensionKeys(sale, dimensionKeys);
+                
+                if (!keys.tiempo_key || !keys.producto_key || !keys.cliente_key || !keys.ubicacion_key) {
+                    this.logger.warn(`Venta ${sale.numero_venta_original} omitida por claves faltantes`);
+                    skipped++;
+                    continue;
+                }
+
+                // Agregar a array para inserción masiva
+                ventasParaInsertar.push([
+                    keys.tiempo_key,
+                    keys.producto_key,
+                    keys.cliente_key,
+                    keys.ubicacion_key,
+                    keys.medio_pago_key,
+                    sale.numero_venta_original,
+                    sale.codigo_producto_original,
+                    sale.id_cliente_original,
+                    sale.cantidad_vendida,
+                    sale.precio_unitario,
+                    sale.costo_unitario,
+                    sale.subtotal,
+                    sale.descuento,
+                    sale.total_linea,
+                    sale.utilidad_linea,
+                    sale.margen_linea,
+                    sale.tipo_venta,
+                    sale.fecha_venta_original
+                ]);
+            }
+
+            // Inserción masiva por lotes de 100
+            if (ventasParaInsertar.length > 0) {
+                this.logger.info(`📦 Insertando ${ventasParaInsertar.length} ventas en lotes...`);
+                const batchSize = 100;
+                
+                for (let i = 0; i < ventasParaInsertar.length; i += batchSize) {
+                    const batch = ventasParaInsertar.slice(i, i + batchSize);
+                    
+                    await this.db.dwConnection.query(`
+                        INSERT INTO fact_ventas (
+                            tiempo_key, producto_key, cliente_key, ubicacion_key, medio_pago_key,
+                            numero_venta_original, codigo_producto_original, id_cliente_original,
+                            cantidad_vendida, precio_unitario, costo_unitario, subtotal,
+                            descuento, total_linea, utilidad_linea, margen_linea,
+                            tipo_venta, fecha_venta_original
+                        ) VALUES ?
+                    `, [batch]);
+                    
+                    loaded += batch.length;
+                    this.logger.logProgress(loaded, ventasParaInsertar.length, 'insertando ventas');
                 }
             }
 

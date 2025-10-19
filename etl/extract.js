@@ -167,7 +167,7 @@ class DataExtractor {
         this.logger.info(`💰 Extrayendo ventas (lote: ${offset}-${offset + batchSize})...`);
         
         try {
-            const [sales] = await this.db.oltpConnection.execute(`
+            const [sales] = await this.db.oltpConnection.query(`
                 SELECT 
                     v.numero_venta,
                     v.fecha_venta,
@@ -198,8 +198,8 @@ class DataExtractor {
                 INNER JOIN producto p ON dv.codigo_producto = p.codigo_producto
                 INNER JOIN cliente c ON v.id_cliente = c.id
                 ORDER BY v.fecha_venta DESC, v.numero_venta, dv.codigo_producto
-                LIMIT ? OFFSET ?
-            `, [batchSize, offset]);
+                LIMIT ${batchSize} OFFSET ${offset}
+            `);
 
             this.logger.incrementExtracted(sales.length);
             this.logger.info(`✅ ${sales.length} registros de ventas extraídos`);

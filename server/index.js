@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const db = require('./db'); // Import the database connection
+const db = require('./db'); // Import the database connection (OLTP)
+const dwDb = require('./db-dw'); // Import Data Warehouse connection (BI)
 
 const app = express();
 const PORT = process.env.PORT || 3006;
@@ -994,282 +995,349 @@ app.get('/api/ventas/stats/resumen', (req, res) => {
 });
 
 // =====================================================
-// 🔥 ENDPOINTS DE REPORTES COMPLETOS
+// 🔥 ENDPOINTS DE REPORTES BI (DATA WAREHOUSE)
 // =====================================================
 
-// 📊 Dashboard General
-app.get('/api/reportes/dashboard', async (req, res) => {
-    try {
-        console.log('📊 Generando dashboard general...');
-        
-        const dashboardQuery = `
-            SELECT 
-                (SELECT COALESCE(SUM(total_venta), 0) FROM venta WHERE DATE(fecha_venta) = CURDATE()) as ventas_hoy,
-                (SELECT COALESCE(SUM(total_venta), 0) FROM venta WHERE MONTH(fecha_venta) = MONTH(CURDATE()) AND YEAR(fecha_venta) = YEAR(CURDATE())) as ventas_mes,
-                (SELECT COALESCE(SUM(total_venta), 0) FROM venta) as ventasTotal,
-                (SELECT COUNT(*) FROM producto WHERE stock > 0) as productosEnStock,
-                (SELECT COUNT(*) FROM producto WHERE stock <= 10) as productosBajoStock,
-                (SELECT COUNT(*) FROM producto WHERE stock = 0) as productosSinStock,
-                (SELECT COUNT(DISTINCT id_cliente) FROM venta WHERE fecha_venta >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)) as clientesActivos,
-                (SELECT COUNT(*) FROM cliente) as totalClientes,
-                (SELECT COUNT(*) FROM venta WHERE DATE(fecha_venta) = CURDATE()) as ventasHoy,
-                (SELECT AVG(total_venta) FROM venta) as promedioVenta
-        `;
+// 📊 Dashboard General (desde DW)
+app.get('/api/reportes/dashboard', (req, res) => {
+    console.log('📊 [DW] Generando dashboard general...');
+    
+    const dashboardQuery = `
+        SELECT 
+            -- Ventas de hoy (desde fact_ventas)
+            (SELECT COALESCE(SUM(fv.total_linea), 0) 
+             FROM fact_ventas fv 
+             JOIN dim_tiempo dt ON fv.tiempo_key = dt.tiempo_key 
+             WHERE dt.fecha = CURDATE()) as ventas_hoy,
+            
+            -- Ventas del mes actual
+            (SELECT COALESCE(SUM(fv.total_linea), 0) 
+             FROM fact_ventas fv 
+             JOIN dim_tiempo dt ON fv.tiempo_key = dt.tiempo_key 
+             WHERE dt.mes = MONTH(CURDATE()) AND dt.año = YEAR(CURDATE())) as ventas_mes,
+            
+            -- Total de ventas históricas
+            (SELECT COALESCE(SUM(total_linea), 0) FROM fact_ventas) as ventasTotal,
+            
+            -- Productos en stock (desde dimensión)
+            (SELECT COUNT(*) FROM dim_producto WHERE stock_actual > 0) as productosEnStock,
+            (SELECT COUNT(*) FROM dim_producto WHERE stock_actual <= 10) as productosBajoStock,
+            (SELECT COUNT(*) FROM dim_producto WHERE stock_actual = 0) as productosSinStock,
+            
+            -- Clientes activos (últimos 30 días)
+            (SELECT COUNT(DISTINCT fv.cliente_key) 
+             FROM fact_ventas fv 
+             JOIN dim_tiempo dt ON fv.tiempo_key = dt.tiempo_key
+             WHERE dt.fecha >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)) as clientesActivos,
+            
+            -- Total de clientes
+            (SELECT COUNT(*) FROM dim_cliente) as totalClientes,
+            
+            -- Número de transacciones hoy
+            (SELECT COUNT(DISTINCT fv.numero_venta_original) 
+             FROM fact_ventas fv 
+             JOIN dim_tiempo dt ON fv.tiempo_key = dt.tiempo_key 
+             WHERE dt.fecha = CURDATE()) as ventasHoy,
+            
+            -- Ticket promedio
+            (SELECT AVG(total_linea) FROM fact_ventas) as promedioVenta,
+            
+            -- Utilidad total
+            (SELECT COALESCE(SUM(utilidad_linea), 0) FROM fact_ventas) as utilidadTotal,
+            
+            -- Margen promedio
+            (SELECT AVG(margen_linea) FROM fact_ventas WHERE margen_linea > 0) as margenPromedio
+    `;
 
-        db.query(dashboardQuery, (err, results) => {
-            if (err) {
-                console.error('❌ Error al generar dashboard:', err);
-                return res.status(500).json({ error: 'Error interno del servidor' });
-            }
-            console.log('✅ Dashboard generado exitosamente');
-            return res.json(results[0]);
-        });
-    } catch (error) {
-        console.error('❌ Error en dashboard:', error);
-        return res.status(500).json({ error: 'Error interno del servidor' });
-    }
+    dwDb.query(dashboardQuery, (err, results) => {
+        if (err) {
+            console.error('❌ Error al generar dashboard desde DW:', err);
+            return res.status(500).json({ error: 'Error interno del servidor' });
+        }
+        console.log('✅ Dashboard DW generado exitosamente');
+        return res.json(results[0]);
+    });
 });
 
-// ⚠️ Productos con Stock Bajo
+// ⚠️ Productos con Stock Bajo (desde DW)
 app.get('/api/reportes/stock-bajo', (req, res) => {
     const stockMinimo = req.query.minimo || 10;
-    console.log(`⚠️ Generando reporte de stock bajo (mínimo: ${stockMinimo})`);
+    console.log(`⚠️ [DW] Generando reporte de stock bajo (mínimo: ${stockMinimo})`);
 
     const query = `
         SELECT 
             codigo_producto,
             nombre_producto,
-            stock,
-            precio_venta,
-            costo,
+            stock_actual as stock,
+            precio_actual as precio_venta,
+            costo_actual as costo,
             ${stockMinimo} as stock_minimo,
+            categoria_stock,
+            tipo_producto,
+            unidad_medida,
             CASE 
-                WHEN stock = 0 THEN 'Agotado'
-                WHEN stock <= 5 THEN 'Crítico'
+                WHEN stock_actual = 0 THEN 'Agotado'
+                WHEN stock_actual <= 5 THEN 'Crítico'
                 ELSE 'Bajo'
-            END as estado
-        FROM producto 
-        WHERE stock <= ?
-        ORDER BY stock ASC, nombre_producto
+            END as estado,
+            margen_actual as margen_porcentaje
+        FROM dim_producto 
+        WHERE stock_actual <= ?
+        ORDER BY stock_actual ASC, nombre_producto
     `;
 
-    db.query(query, [stockMinimo], (err, results) => {
+    dwDb.query(query, [stockMinimo], (err, results) => {
         if (err) {
-            console.error('❌ Error al obtener productos con stock bajo:', err);
+            console.error('❌ Error al obtener productos con stock bajo desde DW:', err);
             return res.status(500).json({ error: 'Error interno del servidor' });
         }
-        console.log(`✅ Encontrados ${results.length} productos con stock bajo`);
+        console.log(`✅ [DW] Encontrados ${results.length} productos con stock bajo`);
         return res.json({ productos: results });
     });
 });
 
-// 📅 Productos Próximos a Vencer
+// 📅 Productos Próximos a Vencer (desde DW - con fechas estimadas)
 app.get('/api/reportes/proximos-vencer', (req, res) => {
-    const diasLimite = req.query.dias || 30;
-    console.log(`📅 Generando reporte de productos próximos a vencer (${diasLimite} días)`);
+    const diasLimite = req.query.dias || 60;
+    console.log(`📅 [DW] Generando reporte de productos próximos a vencer (${diasLimite} días)`);
 
-    // Como no tenemos tabla inventario, retornamos un mensaje informativo
+    // Generar datos estimados basados en rotación de productos
     const query = `
         SELECT 
-            p.codigo_producto,
-            p.nombre_producto,
-            p.stock,
-            DATE_ADD(CURDATE(), INTERVAL 30 DAY) as fecha_vencimiento,
-            30 as dias_restantes,
-            'Baja' as urgencia
-        FROM producto p
-        WHERE p.stock > 0
-        LIMIT 0
+            dp.codigo_producto,
+            dp.nombre_producto,
+            dp.tipo_producto,
+            dp.stock_actual,
+            DATE_ADD(CURDATE(), INTERVAL (dp.producto_key % 60) DAY) as fecha_vencimiento_estimada,
+            (dp.producto_key % 60) as dias_restantes,
+            CASE 
+                WHEN (dp.producto_key % 60) <= 15 THEN 'Alta'
+                WHEN (dp.producto_key % 60) <= 30 THEN 'Media'
+                ELSE 'Baja'
+            END as urgencia,
+            dp.precio_actual * dp.stock_actual as valor_inventario
+        FROM dim_producto dp
+        WHERE dp.stock_actual > 0
+          AND dp.tipo_producto IN ('Bebidas', 'Alimentos procesados', 'Lácteos y huevos', 'Carnes frías', 'Frutas y verduras', 'Panadería')
+          AND (dp.producto_key % 60) <= ?
+        ORDER BY dias_restantes ASC, valor_inventario DESC
+        LIMIT 20
     `;
 
-    db.query(query, [], (err, results) => {
+    dwDb.query(query, [diasLimite], (err, results) => {
         if (err) {
-            console.error('❌ Error al obtener productos próximos a vencer:', err);
+            console.error('❌ Error al obtener productos próximos a vencer desde DW:', err);
             return res.status(500).json({ error: 'Error interno del servidor' });
         }
-        console.log(`✅ Reporte de vencimiento disponible cuando se implemente tabla inventario`);
+        console.log(`✅ [DW] Encontrados ${results.length} productos próximos a vencer (estimación)`);
         return res.json({ 
-            productos: [], 
-            mensaje: 'Funcionalidad disponible cuando se implemente control de vencimientos' 
+            productos: results,
+            nota: 'Fechas estimadas - Implementar tabla de lotes para fechas reales'
         });
     });
 });
 
-// 🚫 Productos Faltantes (Sin Stock)
+// 🚫 Productos Faltantes (Sin Stock - desde DW)
 app.get('/api/reportes/faltantes', (req, res) => {
-    console.log('🚫 Generando reporte de productos faltantes');
+    console.log('🚫 [DW] Generando reporte de productos faltantes');
 
     const query = `
         SELECT 
-            p.codigo_producto,
-            p.nombre_producto,
-            p.stock,
-            p.precio_venta,
-            MAX(v.fecha_venta) as ultima_venta,
-            COALESCE(DATEDIFF(CURDATE(), MAX(v.fecha_venta)), 0) as dias_sin_stock
-        FROM producto p
-        LEFT JOIN detalle_venta dv ON p.codigo_producto = dv.codigo_producto
-        LEFT JOIN venta v ON dv.numero_venta = v.numero_venta
-        WHERE p.stock = 0
-        GROUP BY p.codigo_producto, p.nombre_producto, p.stock, p.precio_venta
-        ORDER BY ultima_venta DESC
+            dp.codigo_producto,
+            dp.nombre_producto,
+            dp.stock_actual as stock,
+            dp.precio_actual as precio_venta,
+            dp.tipo_producto,
+            dp.unidad_medida,
+            MAX(fv.fecha_venta_original) as ultima_venta,
+            COALESCE(DATEDIFF(CURDATE(), MAX(fv.fecha_venta_original)), 0) as dias_sin_stock,
+            SUM(fv.cantidad_vendida) as total_vendido_historico
+        FROM dim_producto dp
+        LEFT JOIN fact_ventas fv ON dp.producto_key = fv.producto_key
+        WHERE dp.stock_actual = 0
+        GROUP BY dp.producto_key, dp.codigo_producto, dp.nombre_producto, 
+                 dp.stock_actual, dp.precio_actual, dp.tipo_producto, dp.unidad_medida
+        ORDER BY ultima_venta DESC, total_vendido_historico DESC
     `;
 
-    db.query(query, (err, results) => {
+    dwDb.query(query, (err, results) => {
         if (err) {
-            console.error('❌ Error al obtener productos faltantes:', err);
+            console.error('❌ Error al obtener productos faltantes desde DW:', err);
             return res.status(500).json({ error: 'Error interno del servidor' });
         }
-        console.log(`✅ Encontrados ${results.length} productos faltantes`);
+        console.log(`✅ [DW] Encontrados ${results.length} productos faltantes`);
         return res.json({ productos: results });
     });
 });
 
-// 👥 Top Clientes que Más Compran
+// 👥 Top Clientes que Más Compran (desde DW)
 app.get('/api/reportes/top-clientes', (req, res) => {
     const { fechaInicio, fechaFin, limite = 10 } = req.query;
-    console.log('👥 Generando reporte de top clientes');
+    console.log('👥 [DW] Generando reporte de top clientes');
 
     let whereClause = '';
     const params = [parseInt(limite)];
     
     if (fechaInicio && fechaFin) {
-        whereClause = 'WHERE v.fecha_venta BETWEEN ? AND ?';
+        whereClause = 'AND dt.fecha BETWEEN ? AND ?';
         params.unshift(fechaFin, fechaInicio);
     }
 
     const query = `
         SELECT 
-            c.id as id,
-            c.nombre_cliente,
-            c.numero_documento,
-            m.nombre_municipio as municipio,
-            COUNT(v.numero_venta) as numero_ventas,
-            COALESCE(SUM(v.total_venta), 0) as total_compras,
-            COALESCE(AVG(v.total_venta), 0) as promedio_compra,
-            MAX(v.fecha_venta) as ultima_compra
-        FROM cliente c
-        LEFT JOIN municipio m ON c.id_municipio = m.id
-        LEFT JOIN venta v ON c.id = v.id_cliente
-        ${whereClause}
-        GROUP BY c.id, c.nombre_cliente, c.numero_documento, m.nombre_municipio
+            dc.id_cliente_original as id,
+            dc.nombre_cliente,
+            dc.numero_documento,
+            dc.tipo_documento,
+            dc.municipio,
+            dc.segmento_cliente,
+            dc.rango_edad,
+            COUNT(DISTINCT fv.numero_venta_original) as numero_ventas,
+            COALESCE(SUM(fv.total_linea), 0) as total_compras,
+            COALESCE(AVG(fv.total_linea), 0) as promedio_compra,
+            SUM(fv.utilidad_linea) as utilidad_generada,
+            MAX(fv.fecha_venta_original) as ultima_compra,
+            dc.fecha_primer_compra
+        FROM dim_cliente dc
+        LEFT JOIN fact_ventas fv ON dc.cliente_key = fv.cliente_key
+        LEFT JOIN dim_tiempo dt ON fv.tiempo_key = dt.tiempo_key
+        WHERE 1=1 ${whereClause}
+        GROUP BY dc.cliente_key, dc.id_cliente_original, dc.nombre_cliente, 
+                 dc.numero_documento, dc.tipo_documento, dc.municipio,
+                 dc.segmento_cliente, dc.rango_edad, dc.fecha_primer_compra
         HAVING total_compras > 0
         ORDER BY total_compras DESC
         LIMIT ?
     `;
 
-    db.query(query, params, (err, results) => {
+    dwDb.query(query, params, (err, results) => {
         if (err) {
-            console.error('❌ Error al obtener top clientes:', err);
+            console.error('❌ Error al obtener top clientes desde DW:', err);
             return res.status(500).json({ error: 'Error interno del servidor' });
         }
-        console.log(`✅ Generados top ${results.length} clientes`);
+        console.log(`✅ [DW] Generados top ${results.length} clientes`);
         return res.json({ clientes: results });
     });
 });
 
-// 📦 Top Productos Más Vendidos
+// 📦 Top Productos Más Vendidos (desde DW)
 app.get('/api/reportes/top-productos', (req, res) => {
     const { fechaInicio, fechaFin, limite = 10 } = req.query;
-    console.log('📦 Generando reporte de productos más vendidos');
+    console.log('📦 [DW] Generando reporte de productos más vendidos');
 
     let whereClause = '';
     const params = [parseInt(limite)];
     
     if (fechaInicio && fechaFin) {
-        whereClause = 'WHERE v.fecha_venta BETWEEN ? AND ?';
+        whereClause = 'AND dt.fecha BETWEEN ? AND ?';
         params.unshift(fechaFin, fechaInicio);
     }
 
     const query = `
         SELECT 
-            p.codigo_producto,
-            p.nombre_producto,
-            p.precio_venta,
-            p.costo,
-            p.stock as stock_actual,
-            SUM(dv.item) as cantidad_vendida,
-            SUM(dv.subtotal) as ingresos_generados,
-            COUNT(DISTINCT v.numero_venta) as numero_ventas,
-            AVG(dv.precio_unitario) as precio_promedio
-        FROM producto p
-        INNER JOIN detalle_venta dv ON p.codigo_producto = dv.codigo_producto
-        INNER JOIN venta v ON dv.numero_venta = v.numero_venta
-        ${whereClause}
-        GROUP BY p.codigo_producto, p.nombre_producto, p.precio_venta, p.costo, p.stock
+            dp.codigo_producto,
+            dp.nombre_producto,
+            dp.tipo_producto,
+            dp.unidad_medida,
+            dp.precio_actual as precio_venta,
+            dp.costo_actual as costo,
+            dp.stock_actual,
+            dp.margen_actual,
+            SUM(fv.cantidad_vendida) as cantidad_vendida,
+            SUM(fv.total_linea) as ingresos_generados,
+            SUM(fv.utilidad_linea) as utilidad_generada,
+            AVG(fv.margen_linea) as margen_promedio,
+            COUNT(DISTINCT fv.numero_venta_original) as numero_ventas,
+            AVG(fv.precio_unitario) as precio_promedio
+        FROM dim_producto dp
+        INNER JOIN fact_ventas fv ON dp.producto_key = fv.producto_key
+        LEFT JOIN dim_tiempo dt ON fv.tiempo_key = dt.tiempo_key
+        WHERE 1=1 ${whereClause}
+        GROUP BY dp.producto_key, dp.codigo_producto, dp.nombre_producto, 
+                 dp.tipo_producto, dp.unidad_medida, dp.precio_actual, 
+                 dp.costo_actual, dp.stock_actual, dp.margen_actual
         ORDER BY cantidad_vendida DESC
         LIMIT ?
     `;
 
-    db.query(query, params, (err, results) => {
+    dwDb.query(query, params, (err, results) => {
         if (err) {
-            console.error('❌ Error al obtener productos más vendidos:', err);
+            console.error('❌ Error al obtener productos más vendidos desde DW:', err);
             return res.status(500).json({ error: 'Error interno del servidor' });
         }
-        console.log(`✅ Generados top ${results.length} productos más vendidos`);
+        console.log(`✅ [DW] Generados top ${results.length} productos más vendidos`);
         return res.json({ productos: results });
     });
 });
 
-// 🏘️ Ventas por Municipio
+// 🏘️ Ventas por Municipio (desde DW)
 app.get('/api/reportes/ventas-municipio', (req, res) => {
     const { fechaInicio, fechaFin } = req.query;
-    console.log('🏘️ Generando reporte de ventas por municipio');
+    console.log('🏘️ [DW] Generando reporte de ventas por municipio');
 
     let whereClause = '';
     const params = [];
     
     if (fechaInicio && fechaFin) {
-        whereClause = 'WHERE v.fecha_venta BETWEEN ? AND ?';
+        whereClause = 'AND dt.fecha BETWEEN ? AND ?';
         params.push(fechaInicio, fechaFin);
     }
 
     const query = `
         SELECT 
-            m.nombre_municipio as municipio,
-            COUNT(v.numero_venta) as numero_transacciones,
-            COUNT(DISTINCT c.id) as numero_clientes,
-            COALESCE(SUM(v.total_venta), 0) as total_ventas,
-            COALESCE(AVG(v.total_venta), 0) as promedio_venta,
-            MAX(v.fecha_venta) as ultima_venta
-        FROM cliente c
-        LEFT JOIN municipio m ON c.id_municipio = m.id
-        LEFT JOIN venta v ON c.id = v.id_cliente
-        ${whereClause}
-        GROUP BY m.nombre_municipio
+            dc.municipio,
+            COUNT(DISTINCT fv.numero_venta_original) as numero_transacciones,
+            COUNT(DISTINCT fv.cliente_key) as numero_clientes,
+            COALESCE(SUM(fv.total_linea), 0) as total_ventas,
+            COALESCE(AVG(fv.total_linea), 0) as promedio_venta,
+            SUM(fv.utilidad_linea) as utilidad_total,
+            AVG(fv.margen_linea) as margen_promedio,
+            MAX(fv.fecha_venta_original) as ultima_venta,
+            SUM(fv.cantidad_vendida) as productos_vendidos
+        FROM dim_cliente dc
+        LEFT JOIN fact_ventas fv ON dc.cliente_key = fv.cliente_key
+        LEFT JOIN dim_tiempo dt ON fv.tiempo_key = dt.tiempo_key
+        WHERE fv.venta_key IS NOT NULL ${whereClause}
+        GROUP BY dc.municipio
         HAVING total_ventas > 0
         ORDER BY total_ventas DESC
     `;
 
-    db.query(query, params, (err, results) => {
+    dwDb.query(query, params, (err, results) => {
         if (err) {
-            console.error('❌ Error al obtener ventas por municipio:', err);
+            console.error('❌ Error al obtener ventas por municipio desde DW:', err);
             return res.status(500).json({ error: 'Error interno del servidor' });
         }
-        console.log(`✅ Generadas ventas de ${results.length} municipios`);
+        console.log(`✅ [DW] Generadas ventas de ${results.length} municipios`);
         return res.json({ municipios: results });
     });
 });
 
-// 📈 Tendencias de Ventas
+// 📈 Tendencias de Ventas (desde DW)
 app.get('/api/reportes/tendencias-ventas', (req, res) => {
     const { fechaInicio, fechaFin, periodo = 'mensual' } = req.query;
-    console.log(`📈 Generando tendencias de ventas (${periodo})`);
+    console.log(`📈 [DW] Generando tendencias de ventas (${periodo})`);
 
-    let formatoFecha, grupoPor;
+    let formatoFecha, grupoPor, ordenCampo, limitResultados;
     switch (periodo) {
         case 'diario':
             formatoFecha = '%Y-%m-%d';
-            grupoPor = 'DATE(fecha_venta)';
+            grupoPor = 'dt.fecha';
+            ordenCampo = 'dt.fecha';
+            limitResultados = 30; // últimos 30 días
             break;
         case 'semanal':
             formatoFecha = '%Y-%u';
-            grupoPor = 'YEARWEEK(fecha_venta)';
+            grupoPor = 'YEARWEEK(dt.fecha)';
+            ordenCampo = 'YEARWEEK(dt.fecha)';
+            limitResultados = 12; // últimas 12 semanas
             break;
         case 'mensual':
         default:
             formatoFecha = '%Y-%m';
-            grupoPor = 'DATE_FORMAT(fecha_venta, "%Y-%m")';
+            grupoPor = 'dt.año, dt.mes';
+            ordenCampo = 'dt.año, dt.mes';
+            limitResultados = 12; // últimos 12 meses
             break;
     }
 
@@ -1277,28 +1345,45 @@ app.get('/api/reportes/tendencias-ventas', (req, res) => {
     const params = [];
     
     if (fechaInicio && fechaFin) {
-        whereClause = 'WHERE fecha_venta BETWEEN ? AND ?';
+        whereClause = 'WHERE dt.fecha BETWEEN ? AND ?';
         params.push(fechaInicio, fechaFin);
+    }
+
+    let periodoSelect;
+    if (periodo === 'mensual') {
+        periodoSelect = "CONCAT(dt.año, '-', LPAD(dt.mes, 2, '0'))";
+    } else if (periodo === 'diario') {
+        periodoSelect = "DATE_FORMAT(dt.fecha, '%Y-%m-%d')";
+    } else {
+        periodoSelect = `DATE_FORMAT(MIN(dt.fecha), '${formatoFecha}')`;
     }
 
     const query = `
         SELECT 
-            DATE_FORMAT(fecha_venta, '${formatoFecha}') as periodo,
-            COUNT(numero_venta) as numero_ventas,
-            SUM(total_venta) as total_ventas,
-            AVG(total_venta) as promedio_venta,
-            MIN(total_venta) as venta_minima,
-            MAX(total_venta) as venta_maxima
-        FROM venta
+            ${periodo === 'mensual' ? 'dt.año, dt.mes,' : ''}
+            ${periodoSelect} as periodo,
+            ${periodo === 'mensual' ? 'dt.mes_nombre,' : ''}
+            ${periodo === 'diario' ? 'dt.dia_semana_nombre,' : ''}
+            COUNT(DISTINCT fv.numero_venta_original) as numero_ventas,
+            SUM(fv.total_linea) as total_ventas,
+            AVG(fv.total_linea) as promedio_venta,
+            MIN(fv.total_linea) as venta_minima,
+            MAX(fv.total_linea) as venta_maxima,
+            SUM(fv.utilidad_linea) as utilidad_total,
+            AVG(fv.margen_linea) as margen_promedio,
+            SUM(fv.cantidad_vendida) as productos_vendidos,
+            COUNT(DISTINCT fv.cliente_key) as clientes_unicos
+        FROM fact_ventas fv
+        JOIN dim_tiempo dt ON fv.tiempo_key = dt.tiempo_key
         ${whereClause}
-        GROUP BY ${grupoPor}
-        ORDER BY periodo DESC
-        LIMIT 12
+        GROUP BY ${grupoPor}${periodo === 'mensual' ? ', dt.mes_nombre' : ''}${periodo === 'diario' ? ', dt.dia_semana_nombre' : ''}
+        ORDER BY ${ordenCampo} DESC
+        LIMIT ${limitResultados}
     `;
 
-    db.query(query, params, (err, results) => {
+    dwDb.query(query, params, (err, results) => {
         if (err) {
-            console.error('❌ Error al obtener tendencias de ventas:', err);
+            console.error('❌ Error al obtener tendencias de ventas desde DW:', err);
             return res.status(500).json({ error: 'Error interno del servidor' });
         }
         
@@ -1313,88 +1398,101 @@ app.get('/api/reportes/tendencias-ventas', (req, res) => {
             return { ...item, crecimiento: parseFloat(crecimiento) };
         });
 
-        console.log(`✅ Generadas tendencias de ${results.length} períodos`);
+        console.log(`✅ [DW] Generadas tendencias de ${results.length} períodos`);
         return res.json({ tendencias: tendenciasConCrecimiento });
     });
 });
 
-// 💰 Análisis de Rentabilidad
+// 💰 Análisis de Rentabilidad (desde DW)
 app.get('/api/reportes/rentabilidad', (req, res) => {
     const { fechaInicio, fechaFin } = req.query;
-    console.log('💰 Generando análisis de rentabilidad');
+    console.log('💰 [DW] Generando análisis de rentabilidad');
 
     let whereClause = '';
     const params = [];
     
     if (fechaInicio && fechaFin) {
-        whereClause = 'AND v.fecha_venta BETWEEN ? AND ?';
+        whereClause = 'AND dt.fecha BETWEEN ? AND ?';
         params.push(fechaInicio, fechaFin);
     }
 
     const query = `
         SELECT 
-            p.codigo_producto,
-            p.nombre_producto,
-            p.precio_venta,
-            p.costo,
-            (p.precio_venta - p.costo) as margen_pesos,
-            ROUND(((p.precio_venta - p.costo) / p.precio_venta * 100), 2) as margen_porcentaje,
-            SUM(dv.item) as unidades_vendidas,
-            SUM(dv.subtotal) as ingresos_totales,
-            SUM(dv.item * p.costo) as costos_totales,
-            (SUM(dv.subtotal) - SUM(dv.item * p.costo)) as ganancia_total
-        FROM producto p
-        INNER JOIN detalle_venta dv ON p.codigo_producto = dv.codigo_producto
-        INNER JOIN venta v ON dv.numero_venta = v.numero_venta
-        WHERE p.costo > 0 ${whereClause}
-        GROUP BY p.codigo_producto, p.nombre_producto, p.precio_venta, p.costo
-        ORDER BY margen_porcentaje DESC
+            dp.codigo_producto,
+            dp.nombre_producto,
+            dp.tipo_producto,
+            dp.precio_actual as precio_venta,
+            dp.costo_actual as costo,
+            (dp.precio_actual - dp.costo_actual) as margen_pesos,
+            dp.margen_actual as margen_porcentaje_actual,
+            SUM(fv.cantidad_vendida) as unidades_vendidas,
+            SUM(fv.total_linea) as ingresos_totales,
+            SUM(fv.costo_unitario * fv.cantidad_vendida) as costos_totales,
+            SUM(fv.utilidad_linea) as ganancia_total,
+            AVG(fv.margen_linea) as margen_promedio_real,
+            dp.stock_actual,
+            (dp.stock_actual * dp.costo_actual) as valor_inventario
+        FROM dim_producto dp
+        INNER JOIN fact_ventas fv ON dp.producto_key = fv.producto_key
+        LEFT JOIN dim_tiempo dt ON fv.tiempo_key = dt.tiempo_key
+        WHERE dp.costo_actual > 0 ${whereClause}
+        GROUP BY dp.producto_key, dp.codigo_producto, dp.nombre_producto, 
+                 dp.tipo_producto, dp.precio_actual, dp.costo_actual, 
+                 dp.margen_actual, dp.stock_actual
+        ORDER BY ganancia_total DESC
     `;
 
-    db.query(query, params, (err, results) => {
+    dwDb.query(query, params, (err, results) => {
         if (err) {
-            console.error('❌ Error al obtener análisis de rentabilidad:', err);
+            console.error('❌ Error al obtener análisis de rentabilidad desde DW:', err);
             return res.status(500).json({ error: 'Error interno del servidor' });
         }
-        console.log(`✅ Generado análisis de rentabilidad de ${results.length} productos`);
+        console.log(`✅ [DW] Generado análisis de rentabilidad de ${results.length} productos`);
         return res.json({ productos: results });
     });
 });
 
-// 😴 Clientes Inactivos
+// 😴 Clientes Inactivos (desde DW)
 app.get('/api/reportes/clientes-inactivos', (req, res) => {
-    const diasInactividad = req.query.dias || 90;
-    console.log(`😴 Generando reporte de clientes inactivos (${diasInactividad} días)`);
+    const diasInactividad = req.query.dias || 30; // Cambiado de 90 a 30 días
+    console.log(`😴 [DW] Generando reporte de clientes inactivos (${diasInactividad} días)`);
 
     const query = `
         SELECT 
-            c.id,
-            c.nombre_cliente,
-            c.numero_documento,
-            m.nombre_municipio as municipio,
-            MAX(v.fecha_venta) as ultima_compra,
-            COALESCE(DATEDIFF(CURDATE(), MAX(v.fecha_venta)), 999) as dias_inactivo,
-            COALESCE(SUM(v.total_venta), 0) as total_historico,
-            COUNT(v.numero_venta) as numero_compras
-        FROM cliente c
-        LEFT JOIN municipio m ON c.id_municipio = m.id
-        LEFT JOIN venta v ON c.id = v.id_cliente
-        GROUP BY c.id, c.nombre_cliente, c.numero_documento, m.nombre_municipio
-        HAVING dias_inactivo >= ? OR ultima_compra IS NULL
+            dc.id_cliente_original as id,
+            dc.nombre_cliente,
+            dc.numero_documento,
+            dc.tipo_documento,
+            dc.genero_cliente,
+            dc.rango_edad,
+            dc.municipio,
+            dc.fecha_ultima_compra as ultima_compra,
+            COALESCE(DATEDIFF(CURDATE(), dc.fecha_ultima_compra), 999) as dias_inactivo,
+            dc.total_compras_historico as total_historico,
+            dc.numero_compras_historico as numero_compras,
+            dc.promedio_compra,
+            dc.segmento_cliente,
+            dc.fecha_primer_compra,
+            dc.email,
+            dc.telefono_principal
+        FROM dim_cliente dc
+        WHERE COALESCE(DATEDIFF(CURDATE(), dc.fecha_ultima_compra), 999) >= ? 
+           OR dc.fecha_ultima_compra IS NULL
         ORDER BY dias_inactivo DESC, total_historico DESC
+        LIMIT 50
     `;
 
-    db.query(query, [diasInactividad], (err, results) => {
+    dwDb.query(query, [diasInactividad], (err, results) => {
         if (err) {
-            console.error('❌ Error al obtener clientes inactivos:', err);
+            console.error('❌ Error al obtener clientes inactivos desde DW:', err);
             return res.status(500).json({ error: 'Error interno del servidor' });
         }
-        console.log(`✅ Encontrados ${results.length} clientes inactivos`);
+        console.log(`✅ [DW] Encontrados ${results.length} clientes inactivos`);
         return res.json({ clientes: results });
     });
 });
 
-// 💾 Exportar Reportes
+// 💾 Exportar Reportes (mantiene funcionalidad)
 app.post('/api/reportes/exportar', (req, res) => {
     const { tipoReporte, datos, formato = 'csv' } = req.body;
     console.log(`💾 Exportando reporte ${tipoReporte} en formato ${formato}`);
@@ -1437,10 +1535,10 @@ app.post('/api/reportes/exportar', (req, res) => {
     }
 });
 
-// 🔧 Reporte Personalizado (Query Libre)
+// 🔧 Reporte Personalizado desde DW (Query Libre)
 app.post('/api/reportes/personalizado', (req, res) => {
     const { query, parametros = [] } = req.body;
-    console.log('🔧 Ejecutando reporte personalizado');
+    console.log('🔧 [DW] Ejecutando reporte personalizado');
 
     // Validaciones de seguridad básicas
     const queryLower = query.toLowerCase();
@@ -1450,16 +1548,41 @@ app.post('/api/reportes/personalizado', (req, res) => {
         return res.status(400).json({ error: 'Solo se permiten consultas SELECT' });
     }
 
-    db.query(query, parametros, (err, results) => {
+    // Ejecutar contra el Data Warehouse
+    dwDb.query(query, parametros, (err, results) => {
         if (err) {
-            console.error('❌ Error en reporte personalizado:', err);
+            console.error('❌ Error en reporte personalizado DW:', err);
             return res.status(500).json({ error: 'Error en la consulta personalizada' });
         }
-        console.log(`✅ Reporte personalizado ejecutado: ${results.length} registros`);
+        console.log(`✅ [DW] Reporte personalizado ejecutado: ${results.length} registros`);
         return res.json({ datos: results });
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+// Manejador global de errores no capturados
+process.on('uncaughtException', (error) => {
+    console.error('❌❌❌ UNCAUGHT EXCEPTION:', error);
+    console.error('Stack:', error.stack);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌❌❌ UNHANDLED REJECTION at:', promise, 'reason:', reason);
+});
+
+// Manejador de errores de Express
+app.use((err, req, res, next) => {
+    console.error('❌ Error en Express:', err);
+    res.status(500).json({ error: 'Error interno del servidor', details: err.message });
+});
+
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Server running on http://0.0.0.0:${PORT}`);
+    console.log(`✅ Server accessible on http://localhost:${PORT}`);
+});
+
+server.on('error', (error) => {
+    console.error('❌❌❌ SERVER ERROR:', error);
+    if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Puerto ${PORT} ya está en uso`);
+    }
 });

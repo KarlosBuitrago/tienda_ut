@@ -178,7 +178,7 @@ export const reportesService = {
   },
 
   // Clientes Inactivos
-  async getClientesInactivos(diasInactividad = 90) {
+  async getClientesInactivos(diasInactividad = 30) {
     try {
       const response = await fetch(`${API_BASE_URL}/reportes/clientes-inactivos?dias=${diasInactividad}`);
       
